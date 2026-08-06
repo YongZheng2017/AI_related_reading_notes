@@ -3,12 +3,22 @@
 ## 大语言模型近期发展史
 
 ~2000    词袋  
-2013    word2Vec  
+
+2013    word2Vec
+
 2017    注意力  
+
 2018    Bert，GPT  
-2019    GPT2  
-2020    GPT3  
-2022    ChatGPT   
+
+2019    GPT-2  
+
+2020    GPT-3  
+
+2022    ChatGPT  
+
+2023    GPT-4  
+
+2025    GPT-5
 
 &nbsp;
 
