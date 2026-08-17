@@ -347,7 +347,7 @@ Positive Review       0.85      0.83      0.84       533
 ```
 from openai import OpenAI
 
-client =  OpenAI(api_key="sk-711ecdc1ed294e3495d9b7e9459be23b", base_url="https://api.deepseek.com")
+client =  OpenAI(api_key="sk-", base_url="https://api.deepseek.com")
 
 def llm_generation(prompt, document, model="deepseek-v4-pro"):
     """Generate an output based on a prompt and an input document."""
