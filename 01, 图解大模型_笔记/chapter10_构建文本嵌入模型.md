@@ -101,7 +101,6 @@ trainer.train()
 # Evaluate our trained model
 result = evaluator(embedding_model)
 print(result)
-
 ```
 
 ```
@@ -264,7 +263,6 @@ print(result)
 original_model = SentenceTransformer(model_path)
 evaluator(original_model)
 print(result)
-
 ```
 
 ```
@@ -318,3 +316,22 @@ Computing widget examples: 100%|██████████| 5/5 [00:01<00:00
 &nbsp;
 
 ### 增强型SBERT
+
+增强型SBERT：只有少量标注数据的情况下微调嵌入模型。利用速度较慢但更精准的交叉编码架构（BERT）来增强和标注更大的输入对集合，这些新标注的数据对被随后用于微调双编码器（SBERT）。
+步骤：
+
+1. 使用小型标注数据集（黄金数据集）微调交叉编码器（BERT）；
+
+2. 创建新的句子对；
+
+3. 使用微调后的交叉编码器标注新的句子对（白银数据集）；
+
+4. 在扩展数据集（黄金数据集+白银数据集）上训练双编码器（SBERT）。
+
+&nbsp;
+
+## 无监督学习
+
+TSDAE（Transformer-Generative Pseudo-Labeling）：生成式伪标签。通过删除输入句子中一定比例的词来为其添加噪声，受损句子被输入编码器中，在编码器的基础上有一个池化层，将其映射为句子嵌入，然后解码器尝试重建原始句子，但不包含人为添加的噪声。核心概率是句子嵌入越准确，重建的句子就越准确。
+
+领域适配：目标是将现有的嵌入模型更新到一个包含不同于源领域主题的特定文本领域。一种方法是自适应预训练，先使用无监督学习对特定领域的语料库进行预训练，然后使用目标领域训练数据进行微调。
