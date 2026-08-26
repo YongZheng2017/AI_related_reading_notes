@@ -506,3 +506,208 @@ preds = mask_filler("What a horrible [MASK]!")
 for pred in preds:
     print(f">>> {pred['sequence']}")
 ```
+
+```
+Map: 100%|██████████| 1066/1066 [00:00<00:00, 15960.79 examples/s]
+  9%|▉         | 500/5340 [01:17<13:10,  6.12it/s]{'loss': 2.515, 'grad_norm': 15.747591972351074, 'learning_rate': 1.812734082397004e-05, 'epoch': 0.94}
+ 10%|▉         | 533/5340 [01:22<11:58,  6.69it/s]Checkpoint destination directory model\checkpoint-534 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 19%|█▊        | 1000/5340 [02:37<12:07,  5.96it/s]{'loss': 2.3949, 'grad_norm': 14.226686477661133, 'learning_rate': 1.6254681647940076e-05, 'epoch': 1.87}
+ 20%|█▉        | 1067/5340 [02:47<10:54,  6.53it/s]Checkpoint destination directory model\checkpoint-1068 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 28%|██▊       | 1500/5340 [03:56<09:09,  6.99it/s]{'loss': 2.2978, 'grad_norm': 19.81380844116211, 'learning_rate': 1.4382022471910113e-05, 'epoch': 2.81}
+ 30%|██▉       | 1601/5340 [04:10<09:18,  6.70it/s]Checkpoint destination directory model\checkpoint-1602 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 37%|███▋      | 2000/5340 [05:17<07:56,  7.01it/s]{'loss': 2.174, 'grad_norm': 14.12675952911377, 'learning_rate': 1.250936329588015e-05, 'epoch': 3.75}
+ 40%|███▉      | 2135/5340 [05:38<08:47,  6.08it/s]Checkpoint destination directory model\checkpoint-2136 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 47%|████▋     | 2500/5340 [06:36<07:13,  6.55it/s]{'loss': 2.114, 'grad_norm': 15.20629596710205, 'learning_rate': 1.0636704119850187e-05, 'epoch': 4.68}
+ 50%|████▉     | 2669/5340 [07:01<06:18,  7.06it/s]Checkpoint destination directory model\checkpoint-2670 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 56%|█████▌    | 3000/5340 [07:54<05:47,  6.74it/s]{'loss': 2.1074, 'grad_norm': 25.626550674438477, 'learning_rate': 8.764044943820226e-06, 'epoch': 5.62}
+ 60%|█████▉    | 3203/5340 [08:26<06:03,  5.89it/s]Checkpoint destination directory model\checkpoint-3204 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 66%|██████▌   | 3500/5340 [09:12<04:31,  6.78it/s]{'loss': 2.0467, 'grad_norm': 13.224017143249512, 'learning_rate': 6.891385767790263e-06, 'epoch': 6.55}
+ 70%|██████▉   | 3737/5340 [09:48<04:38,  5.75it/s]Checkpoint destination directory model\checkpoint-3738 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 75%|███████▍  | 4000/5340 [10:29<03:21,  6.64it/s]{'loss': 2.0412, 'grad_norm': 15.023694038391113, 'learning_rate': 5.0187265917603005e-06, 'epoch': 7.49}
+ 80%|███████▉  | 4271/5340 [11:10<02:50,  6.25it/s]Checkpoint destination directory model\checkpoint-4272 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 84%|████████▍ | 4500/5340 [11:48<03:31,  3.98it/s]{'loss': 2.0083, 'grad_norm': 19.5888729095459, 'learning_rate': 3.146067415730337e-06, 'epoch': 8.43}
+ 90%|████████▉ | 4805/5340 [12:34<01:15,  7.10it/s]Checkpoint destination directory model\checkpoint-4806 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+ 94%|█████████▎| 5000/5340 [13:05<00:50,  6.76it/s]{'loss': 2.0318, 'grad_norm': 22.393526077270508, 'learning_rate': 1.2734082397003748e-06, 'epoch': 9.36}
+100%|█████████▉| 5339/5340 [13:57<00:00,  6.69it/s]Checkpoint destination directory model\checkpoint-5340 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+{'train_runtime': 838.9925, 'train_samples_per_second': 101.67, 'train_steps_per_second': 6.365, 'train_loss': 2.1630037800649577, 'epoch': 10.0}
+100%|██████████| 5340/5340 [13:58<00:00,  6.36it/s]
+Some weights of the model checkpoint at E:/huggingface/models/bert-base-uncased were not used when initializing BertForMaskedLM: ['bert.pooler.dense.bias', 'bert.pooler.dense.weight', 'cls.seq_relationship.bias', 'cls.seq_relationship.weight']
+- This IS expected if you are initializing BertForMaskedLM from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForMaskedLM from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+>>> what a horrible idea!
+>>> what a horrible thing!
+>>> what a horrible day!
+>>> what a horrible story!
+>>> what a horrible dream!
+>>> what a horrible movie!
+>>> what a horrible film!
+>>> what a horrible thing!
+>>> what a horrible idea!
+>>> what a horrible picture!
+```
+
+&nbsp;
+
+## 命名实体识别
+
+命名实体识别（Named Entity Recognition，NER）：从文本数据中获取人名、地名等实体信息。
+
+数据集：conll2003
+
+下载：huggingface-cli download BramVanroy/conll2003 --repo-type dataset --local-dir E:\huggingface\datasets\conll2003
+
+模型：bert-base-cased
+
+下载模型：modelscope download --model google-bert/bert-base-cased --local_dir E:\huggingface\models\bert-base-cased
+
+```
+# pip install spacy-to-hf
+from transformers import AutoTokenizer, pipeline, TrainingArguments, Trainer
+from transformers import AutoModelForTokenClassification
+from transformers import DataCollatorForTokenClassification
+from datasets import load_dataset
+import numpy as np
+import seqeval.metrics as seqeval_metrics
+
+
+# Load data
+dataset = load_dataset("E:/huggingface/datasets/conll2003",
+                       trust_remote_code=True)
+train_data, test_data = dataset["train"], dataset["test"]
+
+label2id = {
+    'O': 0, 'B-PER': 1, 'I-PER': 2, 'B-ORG': 3, 'I-ORG': 4,
+    'B-LOC': 5, 'I-LOC': 6, 'B-MISC': 7, 'I-MISC': 8
+}
+id2label = {index: label for label, index in label2id.items()}
+
+model_path = 'E:/huggingface/models/bert-base-uncased'
+# Load tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+
+# Load model
+model = AutoModelForTokenClassification.from_pretrained(
+    model_path,
+    num_labels=len(id2label),
+    id2label=id2label,
+    label2id=label2id
+)
+
+def align_labels(examples):
+    token_ids = tokenizer(examples["tokens"], truncation=True, is_split_into_words=True)
+    labels = examples["ner_tags"]
+
+    updated_labels = []
+    for index, label in enumerate(labels):
+
+        # Map tokens to their respective word
+        word_ids = token_ids.word_ids(batch_index=index)
+        previous_word_idx = None
+        label_ids = []
+        for word_idx in word_ids:
+
+            # The start of a new word
+            if word_idx != previous_word_idx:
+
+                previous_word_idx = word_idx
+                updated_label = -100 if word_idx is None else label[word_idx]
+                label_ids.append(updated_label)
+
+            # Special token is -100
+            elif word_idx is None:
+                label_ids.append(-100)
+
+            # If the label is B-XXX we change it to I-XXX
+            else:
+                updated_label = label[word_idx]
+                if updated_label % 2 == 1:
+                    updated_label += 1
+                label_ids.append(updated_label)
+
+        updated_labels.append(label_ids)
+
+    token_ids["labels"] = updated_labels
+    return token_ids
+
+tokenized = dataset.map(align_labels, batched=True)
+
+
+def compute_metrics(eval_pred):
+    """使用 seqeval 计算 NER 评估指标"""
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=2)
+
+    # 将预测和真实标签转换为字符串列表
+    true_predictions = []
+    true_labels = []
+
+    for prediction, label in zip(predictions, labels):
+        pred_list = []
+        label_list = []
+        for token_pred, token_label in zip(prediction, label):
+            if token_label != -100:  # 忽略特殊token
+                pred_list.append(id2label[token_pred])
+                label_list.append(id2label[token_label])
+        true_predictions.append(pred_list)
+        true_labels.append(label_list)
+
+    # 使用 seqeval 计算各项指标
+    results = {
+        "f1": seqeval_metrics.f1_score(true_labels, true_predictions),
+        "precision": seqeval_metrics.precision_score(true_labels, true_predictions),
+        "recall": seqeval_metrics.recall_score(true_labels, true_predictions),
+        "accuracy": seqeval_metrics.accuracy_score(true_labels, true_predictions),
+    }
+    return results
+
+# Token-classification Data Collator
+data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
+
+# Training arguments for parameter tuning
+training_args = TrainingArguments(
+   "model",
+   learning_rate=2e-5,
+   per_device_train_batch_size=16,
+   per_device_eval_batch_size=16,
+   num_train_epochs=1,
+   weight_decay=0.01,
+   save_strategy="epoch",
+   report_to="none"
+)
+
+# Initialize Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized["train"],
+    eval_dataset=tokenized["test"],
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+trainer.train()
+
+# Evaluate the model on our test data
+trainer.evaluate()
+
+# Save our fine-tuned model
+trainer.save_model("ner_model")
+
+# Run inference on the fine-tuned model
+token_classifier = pipeline(
+    "token-classification",
+    model="ner_model",
+)
+result = token_classifier("My name is Maarten.")
+print(result)
+```
+
+```
+Map: 100%|██████████| 3453/3453 [00:00<00:00, 24326.42 examples/s]
+ 57%|█████▋    | 500/878 [00:59<00:45,  8.22it/s]{'loss': 0.2177, 'grad_norm': 0.8724098205566406, 'learning_rate': 8.610478359908885e-06, 'epoch': 0.57}
+100%|█████████▉| 877/878 [01:44<00:00,  8.77it/s]Checkpoint destination directory model\checkpoint-878 already exists and is non-empty. Saving will proceed but saved results may be invalid.
+{'train_runtime': 105.4015, 'train_samples_per_second': 133.214, 'train_steps_per_second': 8.33, 'train_loss': 0.15769312213385023, 'epoch': 1.0}
+100%|██████████| 878/878 [01:45<00:00,  8.33it/s]
+100%|██████████| 216/216 [00:06<00:00, 35.88it/s]
+[{'entity': 'B-PER', 'score': np.float32(0.9880164), 'index': 4, 'word': 'ma', 'start': 11, 'end': 13}, {'entity': 'I-PER', 'score': np.float32(0.97985613), 'index': 5, 'word': '##arte', 'start': 13, 'end': 17}, {'entity': 'I-PER', 'score': np.float32(0.98603755), 'index': 6, 'word': '##n', 'start': 17, 'end': 18}]
+```
