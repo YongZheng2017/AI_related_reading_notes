@@ -164,7 +164,6 @@ Tell me something about Large Language Models.</s>
 # Run our instruction-tuned model
 pipe = pipeline(task="text-generation", model=merged_model, tokenizer=tokenizer)
 print(pipe(prompt)[0]["generated_text"])
-
 ```
 
 ```
@@ -188,7 +187,6 @@ Another important feature of LLMs is their ability to generate text in different
 LLMs are also capable of generating text in different styles and genres, such as news articles, blog posts, and social media posts. They can be used to generate text in a variety of contexts, such as marketing campaigns, blog posts, and social media posts.
 
 Overall, LLMs are a powerful tool for generating human-like language, and they are being used in a wide range of applications, including chatbots, machine translation, and natural language processing. They are also being used to generate text in different contexts, such as news articles, blog posts, and social media posts.
-
 ```
 
 &nbsp;
@@ -255,3 +253,183 @@ Overall, LLMs are a powerful tool for generating human-like language, and they a
 数据集：distilabel-intel-orca-dpo-pairs
 
 下载数据集：modelscope download --dataset AI-ModelScope/distilabel-intel-orca-dpo-pairs --local_dir E:\huggingface\datasets\distilabel-intel-orca-dpo-pairs
+
+```
+from datasets import load_dataset
+from peft import AutoPeftModelForCausalLM, PeftModel
+from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
+from transformers import BitsAndBytesConfig, AutoTokenizer, pipeline
+from trl import DPOConfig, DPOTrainer
+
+
+def format_prompt(example):
+    """Format the prompt to using the <|user|> template TinyLLama is using"""
+
+    # Format answers
+    system = "<|system|>\n" + example['system'] + "</s>\n"
+    prompt = "<|user|>\n" + example['input'] + "</s>\n<|assistant|>\n"
+    chosen = example['chosen'] + "</s>\n"
+    rejected = example['rejected'] + "</s>\n"
+
+    return {
+        "prompt": system + prompt,
+        "chosen": chosen,
+        "rejected": rejected,
+    }
+
+# Apply formatting to the dataset and select relatively short answers
+dataset_path = "E:/huggingface/datasets/distilabel-intel-orca-dpo-pairs/data/*.parquet"
+dpo_dataset = (
+    load_dataset("parquet", data_files=dataset_path)
+)
+dpo_dataset = dpo_dataset["train"]
+
+dpo_dataset = dpo_dataset.filter(
+    lambda r:
+        r["status"] != "tie" and
+        r["chosen_score"] >= 8 and
+        not r["in_gsm8k_train"]
+)
+dpo_dataset = dpo_dataset.map(format_prompt, remove_columns=dpo_dataset.column_names)
+
+# 4-bit quantization configuration - Q in QLoRA
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,  # Use 4-bit precision model loading
+    bnb_4bit_quant_type="nf4",  # Quantization type
+    bnb_4bit_compute_dtype="float16",  # Compute dtype
+    bnb_4bit_use_double_quant=True,  # Apply nested quantization
+)
+
+# Merge LoRA and base model
+pretrained_model_path = "F:/Practice/Python_Practice/pytorch_practice/TinyLlama-1.1B-qlora"
+model = AutoPeftModelForCausalLM.from_pretrained(
+    pretrained_model_path,
+    low_cpu_mem_usage=True,
+    device_map="auto",
+    quantization_config=bnb_config,
+)
+merged_model = model.merge_and_unload()
+
+# Load LLaMA tokenizer
+model_name = "E:/huggingface/models/TinyLlama-1.1B-intermediate-step-1431k-3T"
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=False)
+tokenizer.pad_token = "<PAD>"
+tokenizer.padding_side = "left"
+
+# Prepare LoRA Configuration
+peft_config = LoraConfig(
+    lora_alpha=32,  # LoRA Scaling
+    lora_dropout=0.1,  # Dropout for LoRA Layers
+    r=64,  # Rank
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=  # Layers to target
+     ['k_proj', 'gate_proj', 'v_proj', 'up_proj', 'q_proj', 'o_proj', 'down_proj']
+)
+
+# prepare model for training
+model = prepare_model_for_kbit_training(model)
+model = get_peft_model(model, peft_config)
+
+output_dir = "./results"
+
+# Training arguments
+training_arguments = DPOConfig(
+    output_dir=output_dir,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,
+    optim="paged_adamw_32bit",
+    learning_rate=1e-5,
+    lr_scheduler_type="cosine",
+    max_steps=200,
+    logging_steps=10,
+    fp16=True,
+    gradient_checkpointing=True,
+    warmup_ratio=0.1
+)
+
+# Create DPO trainer
+dpo_trainer = DPOTrainer(
+    model,
+    args=training_arguments,
+    train_dataset=dpo_dataset,
+    tokenizer=tokenizer,
+    peft_config=peft_config,
+    beta=0.1,
+    max_prompt_length=512,
+    max_length=512,
+)
+
+# Fine-tune model with DPO
+dpo_trainer.train()
+
+# Save adapter
+dpo_trainer.model.save_pretrained("TinyLlama-1.1B-dpo-qlora")
+
+# Merge LoRA and base model
+model = AutoPeftModelForCausalLM.from_pretrained(
+    pretrained_model_path,
+    low_cpu_mem_usage=True,
+    device_map="auto",
+)
+sft_model = model.merge_and_unload()
+
+# Merge DPO LoRA and SFT model
+dpo_model = PeftModel.from_pretrained(
+    sft_model,
+    "TinyLlama-1.1B-dpo-qlora",
+    device_map="auto",
+)
+dpo_model = dpo_model.merge_and_unload()
+
+# Use our predefined prompt template
+prompt = """<|user|>
+Tell me something about Large Language Models.</s>
+<|assistant|>
+"""
+
+# Run our instruction-tuned model
+pipe = pipeline(task="text-generation", model=dpo_model, tokenizer=tokenizer)
+print(pipe(prompt)[0]["generated_text"])
+```
+
+```
+  5%|▌         | 10/200 [00:53<16:18,  5.15s/it]{'loss': 0.6924, 'grad_norm': 1.7870515584945679, 'learning_rate': 4.5e-06, 'rewards/chosen': 0.0007463550427928567, 'rewards/rejected': -0.000778942194301635, 'rewards/accuracies': 0.21250000596046448, 'rewards/margins': 0.0015252971788868308, 'logps/rejected': -113.88482666015625, 'logps/chosen': -106.79069519042969, 'logits/rejected': -2.915705680847168, 'logits/chosen': -2.849595069885254, 'epoch': 0.01}
+ 10%|█         | 20/200 [01:47<16:23,  5.47s/it]{'loss': 0.6771, 'grad_norm': 2.3161356449127197, 'learning_rate': 9.5e-06, 'rewards/chosen': 0.008611917495727539, 'rewards/rejected': -0.024700652807950974, 'rewards/accuracies': 0.44999998807907104, 'rewards/margins': 0.03331257030367851, 'logps/rejected': -158.19476318359375, 'logps/chosen': -125.73799896240234, 'logits/rejected': -3.0606935024261475, 'logits/chosen': -2.922976493835449, 'epoch': 0.03}
+ 15%|█▌        | 30/200 [02:43<16:02,  5.66s/it]{'loss': 0.6471, 'grad_norm': 2.418865919113159, 'learning_rate': 9.938441702975689e-06, 'rewards/chosen': 0.01567707397043705, 'rewards/rejected': -0.08606791496276855, 'rewards/accuracies': 0.44999998807907104, 'rewards/margins': 0.10174499452114105, 'logps/rejected': -144.3031768798828, 'logps/chosen': -107.13211822509766, 'logits/rejected': -2.9469082355499268, 'logits/chosen': -2.837630271911621, 'epoch': 0.04}
+ 20%|██        | 40/200 [03:31<13:20,  5.01s/it]{'loss': 0.6081, 'grad_norm': 2.0197136402130127, 'learning_rate': 9.755282581475769e-06, 'rewards/chosen': 0.0045336573384702206, 'rewards/rejected': -0.202768474817276, 'rewards/accuracies': 0.5375000238418579, 'rewards/margins': 0.20730213820934296, 'logps/rejected': -166.26864624023438, 'logps/chosen': -129.5735321044922, 'logits/rejected': -2.9638590812683105, 'logits/chosen': -2.85215425491333, 'epoch': 0.05}
+ 25%|██▌       | 50/200 [04:26<13:15,  5.30s/it]{'loss': 0.6004, 'grad_norm': 3.369025945663452, 'learning_rate': 9.414737964294636e-06, 'rewards/chosen': -0.046127550303936005, 'rewards/rejected': -0.29416295886039734, 'rewards/accuracies': 0.5, 'rewards/margins': 0.24803538620471954, 'logps/rejected': -168.34597778320312, 'logps/chosen': -134.97463989257812, 'logits/rejected': -2.9724717140197754, 'logits/chosen': -2.8478710651397705, 'epoch': 0.07}
+ 30%|███       | 60/200 [05:22<13:31,  5.80s/it]{'loss': 0.6148, 'grad_norm': 4.472890377044678, 'learning_rate': 8.94005376803361e-06, 'rewards/chosen': -0.07834647595882416, 'rewards/rejected': -0.3229285180568695, 'rewards/accuracies': 0.36250001192092896, 'rewards/margins': 0.24458202719688416, 'logps/rejected': -125.59132385253906, 'logps/chosen': -108.86293029785156, 'logits/rejected': -2.9801559448242188, 'logits/chosen': -2.9046967029571533, 'epoch': 0.08}
+ 35%|███▌      | 70/200 [06:18<12:24,  5.72s/it]{'loss': 0.5937, 'grad_norm': 1.313569188117981, 'learning_rate': 8.345653031794292e-06, 'rewards/chosen': -0.0611492395401001, 'rewards/rejected': -0.4165809750556946, 'rewards/accuracies': 0.375, 'rewards/margins': 0.3554316759109497, 'logps/rejected': -136.60519409179688, 'logps/chosen': -108.34822845458984, 'logits/rejected': -3.0213749408721924, 'logits/chosen': -2.937819719314575, 'epoch': 0.09}
+ 40%|████      | 80/200 [07:15<11:50,  5.92s/it]{'loss': 0.534, 'grad_norm': 1.409082055091858, 'learning_rate': 7.649596321166024e-06, 'rewards/chosen': -0.0853465124964714, 'rewards/rejected': -0.6397562623023987, 'rewards/accuracies': 0.5, 'rewards/margins': 0.5544098019599915, 'logps/rejected': -168.27525329589844, 'logps/chosen': -135.24526977539062, 'logits/rejected': -2.928148031234741, 'logits/chosen': -2.7913906574249268, 'epoch': 0.11}
+ 45%|████▌     | 90/200 [08:10<10:02,  5.47s/it]{'loss': 0.5597, 'grad_norm': 3.73032283782959, 'learning_rate': 6.873032967079562e-06, 'rewards/chosen': -0.11632146686315536, 'rewards/rejected': -0.6740682125091553, 'rewards/accuracies': 0.4375, 'rewards/margins': 0.5577467679977417, 'logps/rejected': -175.5201873779297, 'logps/chosen': -116.31217956542969, 'logits/rejected': -3.0396411418914795, 'logits/chosen': -2.861473560333252, 'epoch': 0.12}
+ 50%|█████     | 100/200 [09:07<09:51,  5.92s/it]{'loss': 0.6354, 'grad_norm': 1.0067471265792847, 'learning_rate': 6.039558454088796e-06, 'rewards/chosen': -0.21031954884529114, 'rewards/rejected': -0.7997227907180786, 'rewards/accuracies': 0.4625000059604645, 'rewards/margins': 0.5894031524658203, 'logps/rejected': -183.30694580078125, 'logps/chosen': -129.44375610351562, 'logits/rejected': -2.932190418243408, 'logits/chosen': -2.7918035984039307, 'epoch': 0.14}
+ 55%|█████▌    | 110/200 [10:05<08:40,  5.78s/it]{'loss': 0.4996, 'grad_norm': 1.5949487686157227, 'learning_rate': 5.174497483512506e-06, 'rewards/chosen': -0.07178173959255219, 'rewards/rejected': -0.8971213102340698, 'rewards/accuracies': 0.574999988079071, 'rewards/margins': 0.8253396153450012, 'logps/rejected': -198.72897338867188, 'logps/chosen': -146.10479736328125, 'logits/rejected': -2.943246364593506, 'logits/chosen': -2.779600143432617, 'epoch': 0.15}
+ 60%|██████    | 120/200 [11:04<07:50,  5.88s/it]{'loss': 0.5859, 'grad_norm': 5.5328521728515625, 'learning_rate': 4.304134495199675e-06, 'rewards/chosen': -0.17969359457492828, 'rewards/rejected': -0.9202000498771667, 'rewards/accuracies': 0.48750001192092896, 'rewards/margins': 0.7405065298080444, 'logps/rejected': -194.0130615234375, 'logps/chosen': -123.16999816894531, 'logits/rejected': -2.859191417694092, 'logits/chosen': -2.6360604763031006, 'epoch': 0.16}
+ 65%|██████▌   | 130/200 [11:56<06:07,  5.25s/it]{'loss': 0.6298, 'grad_norm': 2.4332029819488525, 'learning_rate': 3.4549150281252635e-06, 'rewards/chosen': -0.1871483027935028, 'rewards/rejected': -0.6710089445114136, 'rewards/accuracies': 0.4124999940395355, 'rewards/margins': 0.483860582113266, 'logps/rejected': -146.4880828857422, 'logps/chosen': -122.91691589355469, 'logits/rejected': -2.95247745513916, 'logits/chosen': -2.8950753211975098, 'epoch': 0.18}
+ 70%|███████   | 140/200 [12:50<05:40,  5.68s/it]{'loss': 0.5868, 'grad_norm': 3.679938793182373, 'learning_rate': 2.6526421860705474e-06, 'rewards/chosen': -0.1373380571603775, 'rewards/rejected': -0.7907261848449707, 'rewards/accuracies': 0.4375, 'rewards/margins': 0.6533880829811096, 'logps/rejected': -140.21502685546875, 'logps/chosen': -127.44154357910156, 'logits/rejected': -3.0303025245666504, 'logits/chosen': -2.941232442855835, 'epoch': 0.19}
+ 75%|███████▌  | 150/200 [13:40<04:18,  5.16s/it]{'loss': 0.5748, 'grad_norm': 0.7100883722305298, 'learning_rate': 1.9216926233717087e-06, 'rewards/chosen': -0.07069531083106995, 'rewards/rejected': -0.7885652780532837, 'rewards/accuracies': 0.4000000059604645, 'rewards/margins': 0.7178699374198914, 'logps/rejected': -141.05581665039062, 'logps/chosen': -81.0375747680664, 'logits/rejected': -2.905264377593994, 'logits/chosen': -2.7816669940948486, 'epoch': 0.2}
+ 80%|████████  | 160/200 [14:33<03:38,  5.46s/it]{'loss': 0.5889, 'grad_norm': 2.0510945320129395, 'learning_rate': 1.2842758726130283e-06, 'rewards/chosen': -0.09275250136852264, 'rewards/rejected': -0.7196430563926697, 'rewards/accuracies': 0.42500001192092896, 'rewards/margins': 0.6268905997276306, 'logps/rejected': -148.88931274414062, 'logps/chosen': -107.92057800292969, 'logits/rejected': -2.9309070110321045, 'logits/chosen': -2.822575092315674, 'epoch': 0.22}
+ 85%|████████▌ | 170/200 [15:27<02:48,  5.62s/it]{'loss': 0.6072, 'grad_norm': 2.145738363265991, 'learning_rate': 7.597595192178702e-07, 'rewards/chosen': -0.06866542994976044, 'rewards/rejected': -0.6307964324951172, 'rewards/accuracies': 0.3499999940395355, 'rewards/margins': 0.5621310472488403, 'logps/rejected': -129.4966583251953, 'logps/chosen': -100.701171875, 'logits/rejected': -2.9245519638061523, 'logits/chosen': -2.8931288719177246, 'epoch': 0.23}
+ 90%|█████████ | 180/200 [16:19<01:39,  4.96s/it]{'loss': 0.6253, 'grad_norm': 5.127623081207275, 'learning_rate': 3.6408072716606346e-07, 'rewards/chosen': -0.19563503563404083, 'rewards/rejected': -0.7856829166412354, 'rewards/accuracies': 0.4124999940395355, 'rewards/margins': 0.5900478363037109, 'logps/rejected': -152.93312072753906, 'logps/chosen': -132.02328491210938, 'logits/rejected': -2.938133716583252, 'logits/chosen': -2.9063563346862793, 'epoch': 0.24}
+ 95%|█████████▌| 190/200 [17:09<00:51,  5.11s/it]{'loss': 0.6721, 'grad_norm': 5.507063388824463, 'learning_rate': 1.0926199633097156e-07, 'rewards/chosen': -0.12195022404193878, 'rewards/rejected': -0.4330800473690033, 'rewards/accuracies': 0.3375000059604645, 'rewards/margins': 0.3111298680305481, 'logps/rejected': -123.92408752441406, 'logps/chosen': -101.3538818359375, 'logits/rejected': -2.823333978652954, 'logits/chosen': -2.779634475708008, 'epoch': 0.26}
+100%|██████████| 200/200 [18:02<00:00,  5.41s/it]
+{'loss': 0.5555, 'grad_norm': 2.839907169342041, 'learning_rate': 3.0458649045211897e-09, 'rewards/chosen': -0.021109113469719887, 'rewards/rejected': -0.7731715440750122, 'rewards/accuracies': 0.4749999940395355, 'rewards/margins': 0.7520624399185181, 'logps/rejected': -161.9045867919922, 'logps/chosen': -107.6459732055664, 'logits/rejected': -2.965052604675293, 'logits/chosen': -2.816384792327881, 'epoch': 0.27}
+{'train_runtime': 1082.5214, 'train_samples_per_second': 1.478, 'train_steps_per_second': 0.185, 'train_loss': 0.6044228625297546, 'epoch': 0.27}
+<|user|>
+Tell me something about Large Language Models.</s>
+<|assistant|>
+Large Language Models (LLMs) are a type of artificial intelligence (AI) that can generate human-like language. They are trained on large amounts of text data, and they can be used to generate text in various contexts, such as chatbots, machine translation, and natural language processing (NLP).
+
+LLMs are based on neural networks, which are a type of artificial neural network (ANN) that can simulate the way the human brain works. They are trained on large amounts of text data, and they are able to learn patterns and relationships between words, sentences, and paragraphs.
+
+One of the most important features of LLMs is their ability to generate human-like language. They can generate text that is grammatically correct, has the right tone, and is understandable by humans. This is because LLMs are trained on large amounts of text data, which includes a wide range of language styles and contexts.
+
+Another important feature of LLMs is their ability to generate text in different languages. They can be trained on text in multiple languages, and they can be used to generate text in different contexts, such as chatbots, machine translation, and natural language processing.
+
+LLMs are also capable of generating text in different styles and genres, such as news articles, blog posts, and social media posts. They can be used to generate text in a variety of contexts, such as marketing campaigns, blog posts, and social media posts.
+
+Overall, LLMs are a powerful tool for generating human-like language, and they are being used in a wide range of applications, including chatbots, machine translation, and natural language processing. They are also being used to generate text in different contexts, such as news articles, blog posts, and social media posts.
+
+
+```
